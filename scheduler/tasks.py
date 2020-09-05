@@ -1,20 +1,13 @@
 from invoke import task
+import importlib
 import pexpect
 import sys
 
 
-def prefect_use_local(c):
-    c.run('prefect backend server')
-
-
-def prefect_stop(c):
-    c.run('prefect server stop')
-
-
-def prefect_start(c):
+def prefect_start(_):
     child = pexpect.spawn('prefect server start', timeout=600)
     child.logfile = sys.stdout.buffer
-    child.expect('Building schema complete')
+    child.expect('Building schema complete!')
 
 
 def prefect_agent(c):
@@ -22,7 +15,24 @@ def prefect_agent(c):
 
 
 @task
+def register(c):
+    importlib.import_module('flows')
+
+
+@task
+def stop(c):
+    dirname="$(dirname {__file__})"
+
+    c.run(f"""
+        #cd {dirname}
+        cd .venv/lib/python*/site-packages/prefect/cli
+        docker-compose down
+    """)
+
+
+@task
 def dev(c):
     prefect_start(c)
-    prefect_use_local(c)
+    register(c)
+    c.run('prefect backend server')
     prefect_agent(c)
